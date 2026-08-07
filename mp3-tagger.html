@@ -11,6 +11,8 @@
 <style>
   :root{
     --bg:#171614;
+    --bg-glow:#221f1a;
+    --bg-grain:rgba(255,255,255,0.012);
     --panel:#211f1c;
     --panel-raised:#28241f;
     --line:#3a352c;
@@ -20,23 +22,68 @@
     --text-faint:#5f594c;
     --amber:#f2a03d;
     --amber-dim:#8a5f26;
+    --on-amber:#1a1712;
     --red:#d6503c;
     --green:#7fa86b;
     --radius:3px;
+    --head-grad-1:#1c1a17;
+    --head-grad-2:#171614;
+    --led-glow:rgba(242,160,61,.7);
+    --dropzone-hover-bg:#2c2820;
+    --track-active-bg:#2c2620;
+    --cassette-a:#241f1a;
+    --cassette-b:#1c1916;
+    --reel-stroke:#4a4436;
+    --field-bg:#141210;
+    --field-bg-focus:#181512;
+    --field-bg-strong:#0f0e0c;
+    --shadow-color:rgba(0,0,0,.4);
+    --amber-hover:#ffb654;
+  }
+  html[data-theme="light"]{
+    --bg:#e3dfd2;
+    --bg-glow:#d6cfb9;
+    --bg-grain:rgba(40,34,20,0.03);
+    --panel:#ece7d9;
+    --panel-raised:#f6f3e8;
+    --line:#c7c0a9;
+    --line-soft:#d7d1ba;
+    --text:#26241c;
+    --text-dim:#5e5945;
+    --text-faint:#89836c;
+    --amber:#b3701c;
+    --amber-dim:#d9a860;
+    --on-amber:#fbf6ea;
+    --red:#af3f28;
+    --green:#4c7a3c;
+    --head-grad-1:#f2eee0;
+    --head-grad-2:#e8e2cf;
+    --led-glow:rgba(179,112,28,.55);
+    --dropzone-hover-bg:#e7e0c6;
+    --track-active-bg:#e4dabb;
+    --cassette-a:#efeadb;
+    --cassette-b:#e5dfc9;
+    --reel-stroke:#a89c7c;
+    --field-bg:#fbf9f0;
+    --field-bg-focus:#ffffff;
+    --field-bg-strong:#f1ecdc;
+    --shadow-color:rgba(60,50,20,.16);
+    --amber-hover:#8f5c14;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
     margin:0;
     background:
-      radial-gradient(1200px 600px at 15% -10%, #221f1a 0%, transparent 60%),
-      repeating-linear-gradient(180deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
+      radial-gradient(1200px 600px at 15% -10%, var(--bg-glow) 0%, transparent 60%),
+      repeating-linear-gradient(180deg, var(--bg-grain) 0px, var(--bg-grain) 1px, transparent 1px, transparent 3px),
       var(--bg);
     color:var(--text);
     font-family:'IBM Plex Mono', monospace;
     -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
   }
-  ::selection{ background:var(--amber); color:#1a1712; }
+  ::selection{ background:var(--amber); color:var(--on-amber); }
   ::-webkit-scrollbar{ width:10px; height:10px; }
   ::-webkit-scrollbar-track{ background:var(--panel); }
   ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:6px; }
@@ -55,12 +102,13 @@
     gap:16px;
     padding:18px 24px;
     border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg, #1c1a17, #171614);
+    background:linear-gradient(180deg, var(--head-grad-1), var(--head-grad-2));
+    transition:background .2s ease, border-color .2s ease;
   }
   .power-led{
     width:9px; height:9px; border-radius:50%;
     background:var(--amber);
-    box-shadow:0 0 6px 1px rgba(242,160,61,.7);
+    box-shadow:0 0 6px 1px var(--led-glow);
     animation:pulse 2.6s ease-in-out infinite;
     flex-shrink:0;
   }
@@ -80,12 +128,58 @@
     letter-spacing:.02em;
   }
   .head-meta{
-    margin-left:auto;
     font-size:10.5px;
     color:var(--text-faint);
     text-align:right;
     line-height:1.5;
     letter-spacing:.04em;
+  }
+  .head-right{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+  .theme-switch{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-family:'Oswald', sans-serif;
+    color:var(--text-dim);
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px;
+    flex-shrink:0;
+  }
+  .theme-switch:hover{ color:var(--amber); }
+  .switch-track{
+    width:34px; height:16px;
+    border-radius:9px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    position:relative;
+    display:inline-block;
+    flex-shrink:0;
+    transition:background .2s ease, border-color .2s ease;
+  }
+  .switch-thumb{
+    position:absolute;
+    top:1px; left:1px;
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 4px rgba(0,0,0,.35);
+    transition:transform .2s ease, background .2s ease;
+  }
+  html[data-theme="light"] .switch-thumb{ transform:translateX(18px); }
+  @media (max-width:520px){
+    header.deck-head{ flex-wrap:wrap; row-gap:10px; }
+    .head-right{ margin-left:0; width:100%; justify-content:space-between; }
+    .head-meta{ text-align:left; }
   }
 
   .layout{
@@ -117,7 +211,7 @@
   }
   .dropzone:hover, .dropzone.dragover{
     border-color:var(--amber);
-    background:#2c2820;
+    background:var(--dropzone-hover-bg);
   }
   .dropzone .glyph{
     font-size:20px;
@@ -172,7 +266,7 @@
   }
   .track-item:hover{ background:var(--panel-raised); }
   .track-item.active{
-    background:#2c2620;
+    background:var(--track-active-bg);
     border-color:var(--amber-dim);
   }
   .track-vu{
@@ -251,10 +345,10 @@
   .btn.primary{
     background:var(--amber);
     border-color:var(--amber);
-    color:#1a1712;
+    color:var(--on-amber);
     font-weight:600;
   }
-  .btn.primary:hover{ background:#ffb654; color:#1a1712; }
+  .btn.primary:hover{ background:var(--amber-hover); border-color:var(--amber-hover); color:var(--on-amber); }
   .btn.small{ padding:6px 10px; font-size:10.5px; }
   .btn:disabled{ opacity:.4; cursor:not-allowed; }
   .btn:disabled:hover{ border-color:var(--line); color:var(--text); }
@@ -277,6 +371,8 @@
     margin:0 auto 18px;
     width:140px;
   }
+  .cassette-illust [stroke], .reel-window [stroke]{ stroke:var(--reel-stroke); }
+  .cassette-illust [fill]:not([fill="none"]), .reel-window [fill]:not([fill="none"]){ fill:var(--reel-stroke); }
   .empty-state h2{
     font-family:'Oswald', sans-serif;
     text-transform:uppercase;
@@ -291,7 +387,7 @@
 
   /* cassette window */
   .cassette{
-    background:linear-gradient(180deg, #241f1a, #1c1916);
+    background:linear-gradient(180deg, var(--cassette-a), var(--cassette-b));
     border:1px solid var(--line);
     border-radius:6px;
     padding:16px 20px;
@@ -391,7 +487,7 @@
     color:var(--text-dim);
   }
   .field input, .field textarea{
-    background:#141210;
+    background:var(--field-bg);
     border:1px solid var(--line);
     border-radius:2px;
     color:var(--amber);
@@ -403,7 +499,7 @@
   .field input:focus, .field textarea:focus{
     outline:none;
     border-color:var(--amber-dim);
-    background:#181512;
+    background:var(--field-bg-focus);
   }
   .field textarea{ resize:vertical; min-height:52px; font-size:12px; }
   .field-row3{ grid-column:1 / -1; display:grid; grid-template-columns:1fr 2fr 1fr; gap:16px; }
@@ -460,7 +556,7 @@
     text-transform:uppercase;
     letter-spacing:.08em;
     font-size:9.5px;
-    color:#1a1712;
+    color:var(--on-amber);
     background:var(--amber);
     padding:2px 6px;
     border-radius:2px;
@@ -525,7 +621,7 @@
     font-family:'IBM Plex Mono', monospace;
     font-size:11.5px;
     color:var(--text);
-    background:#141210;
+    background:var(--field-bg);
     border:1px solid var(--line);
     border-radius:2px;
     padding:8px 9px;
@@ -533,7 +629,7 @@
   .autonum-row input[type="checkbox"]{ accent-color:var(--amber); flex-shrink:0; }
   .autonum-row input[type="number"]{
     width:48px;
-    background:#0f0e0c;
+    background:var(--field-bg-strong);
     border:1px solid var(--line);
     color:var(--amber);
     border-radius:2px;
@@ -558,7 +654,7 @@
     font-size:12px;
     padding:10px 14px;
     border-radius:2px;
-    box-shadow:0 6px 18px rgba(0,0,0,.4);
+    box-shadow:0 6px 18px var(--shadow-color);
     max-width:280px;
     animation:toastin .18s ease;
   }
@@ -575,7 +671,13 @@
     <h1>MP3 Tagger</h1>
     <div class="subtitle">Load tracks, print new labels, export.</div>
   </div>
-  <div class="head-meta">ID3v2.3 · RUNS ENTIRELY IN YOUR BROWSER<br>NOTHING IS UPLOADED</div>
+  <div class="head-right">
+    <div class="head-meta">ID3v2.3 · RUNS ENTIRELY IN YOUR BROWSER<br>NOTHING IS UPLOADED</div>
+    <button type="button" class="theme-switch" id="themeToggle" aria-pressed="false" aria-label="Switch to light mode">
+      <span id="themeCaption">Dark</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
+  </div>
 </header>
 
 <div class="layout">
@@ -1079,6 +1181,8 @@
     dirtyHint: document.getElementById('dirtyHint'),
     genreList: document.getElementById('genreList'),
     toastStack: document.getElementById('toastStack'),
+    themeToggle: document.getElementById('themeToggle'),
+    themeCaption: document.getElementById('themeCaption'),
     batchWrap: document.getElementById('batchWrap'),
     batchCount: document.getElementById('batchCount'),
     batchOrderList: document.getElementById('batchOrderList'),
@@ -1649,6 +1753,19 @@
   // also allow dropping anywhere on the tray
   document.addEventListener('dragover', function(e){ e.preventDefault(); });
   document.addEventListener('drop', function(e){ e.preventDefault(); });
+
+  /* ---- theme toggle (session only — no storage used) ---- */
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    els.themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    els.themeToggle.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+    els.themeCaption.textContent = theme === 'light' ? 'Light' : 'Dark';
+  }
+  els.themeToggle.addEventListener('click', function(){
+    var current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+  applyTheme('dark');
 
   refresh();
 })();
