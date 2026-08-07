@@ -427,6 +427,121 @@
     margin-left:auto;
   }
 
+  /* ---------- multi-select ---------- */
+  .track-check{
+    flex-shrink:0;
+    width:13px; height:13px;
+    accent-color:var(--amber);
+    cursor:pointer;
+  }
+  .tray-select-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:10.5px;
+    color:var(--text-faint);
+  }
+  .tray-select-row button{
+    background:none; border:none;
+    color:var(--amber);
+    cursor:pointer;
+    font-family:'Oswald', sans-serif;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    padding:2px 0;
+  }
+  .tray-select-row button:hover{ text-decoration:underline; }
+  .tray-select-row button:disabled{ color:var(--text-faint); cursor:not-allowed; text-decoration:none; }
+
+  .batch-badge{
+    display:inline-block;
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    font-size:9.5px;
+    color:#1a1712;
+    background:var(--amber);
+    padding:2px 6px;
+    border-radius:2px;
+    margin-left:8px;
+    vertical-align:middle;
+  }
+
+  .batch-order-card{ padding:16px 22px 18px; }
+  .batch-order-list{
+    list-style:none;
+    margin:10px 0 0; padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    max-height:220px;
+    overflow-y:auto;
+    position:relative;
+  }
+  .batch-order-row{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:6px 9px;
+    font-size:12px;
+  }
+  .batch-order-row .idx{
+    color:var(--amber);
+    width:38px; flex-shrink:0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+  }
+  .batch-order-row .oname{
+    flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .batch-order-row .ord-btns{ display:flex; gap:2px; flex-shrink:0; }
+  .batch-order-row .ord-btns button{
+    background:none; border:1px solid var(--line);
+    color:var(--text-dim);
+    width:20px; height:20px;
+    font-size:10px;
+    cursor:pointer;
+    border-radius:2px;
+    line-height:1;
+  }
+  .batch-order-row .ord-btns button:hover{ color:var(--amber); border-color:var(--amber-dim); }
+  .batch-order-row .ord-btns button:disabled{ opacity:.3; cursor:not-allowed; }
+
+  .batch-hint{
+    font-size:10.5px;
+    color:var(--text-faint);
+    margin:14px 0 0;
+    line-height:1.5;
+  }
+  .autonum-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--text);
+    background:#141210;
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:8px 9px;
+  }
+  .autonum-row input[type="checkbox"]{ accent-color:var(--amber); flex-shrink:0; }
+  .autonum-row input[type="number"]{
+    width:48px;
+    background:#0f0e0c;
+    border:1px solid var(--line);
+    color:var(--amber);
+    border-radius:2px;
+    padding:3px 5px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+  }
+
   .toast-stack{
     position:fixed;
     bottom:18px; right:18px;
@@ -475,6 +590,10 @@
     <div class="tray-list-head">
       <span class="eyebrow">Tray</span>
       <span class="tray-count" id="trayCount">0 loaded</span>
+    </div>
+    <div class="tray-select-row">
+      <span id="selectionStatus">Check tracks to batch edit</span>
+      <button type="button" id="selectAllBtn">Select all</button>
     </div>
     <ul class="tray-list" id="trayList"></ul>
 
@@ -573,6 +692,92 @@
           <button class="btn primary" id="saveBtn">Export tagged MP3</button>
           <button class="btn" id="resetBtn">Reset to original</button>
           <span class="save-hint" id="dirtyHint"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deck-wrap" id="batchWrap" hidden>
+      <div class="cassette">
+        <svg class="reel-window" width="60" height="44" viewBox="0 0 60 44" aria-hidden="true">
+          <circle cx="17" cy="22" r="15" fill="none" stroke="#4a4436" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="17" cy="22" r="4" fill="#4a4436"/>
+          <circle cx="43" cy="22" r="15" fill="none" stroke="#4a4436" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="43" cy="22" r="4" fill="#4a4436"/>
+        </svg>
+        <div class="filename-readout">
+          <span class="tag">Batch editing<span class="batch-badge">Album mode</span></span>
+          <span class="fname" id="batchCount">0 tracks selected</span>
+          <span class="fmeta">Fields apply to every checked track at once</span>
+        </div>
+      </div>
+
+      <div class="label-card batch-order-card">
+        <span class="eyebrow">Track order — sets the numbering below</span>
+        <ol class="batch-order-list" id="batchOrderList"></ol>
+      </div>
+
+      <div class="label-card">
+        <div class="label-body">
+          <div class="art-block">
+            <div class="art-frame" id="batchArtFrame">
+              <span id="batchArtPlaceholder">ART<br>UNCHANGED</span>
+              <img id="batchArtImg" hidden alt="Batch artwork preview">
+            </div>
+            <div class="art-actions">
+              <button class="btn small" id="batchArtUploadBtn">+ Art (all)</button>
+              <button class="btn small" id="batchArtRemoveBtn">Remove (all)</button>
+            </div>
+            <input type="file" id="batchArtInput" accept="image/*" hidden>
+          </div>
+
+          <div class="fields">
+            <div class="field">
+              <label for="bArtist">Artist</label>
+              <input id="bArtist" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="bAlbum">Album</label>
+              <input id="bAlbum" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="bAlbumArtist">Album Artist</label>
+              <input id="bAlbumArtist" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="bGenre">Genre</label>
+              <input id="bGenre" type="text" list="genreList" autocomplete="off">
+            </div>
+            <div class="field-row3">
+              <div class="field">
+                <label for="bYear">Year</label>
+                <input id="bYear" type="text" inputmode="numeric" maxlength="4">
+              </div>
+              <div class="field">
+                <label for="bAutoNumber">Track numbers</label>
+                <div class="autonum-row">
+                  <input type="checkbox" id="bAutoNumber">
+                  <label for="bAutoNumber" style="text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--text-dim);">Start at</label>
+                  <input type="number" id="bStartAt" min="1" value="1">
+                </div>
+              </div>
+              <div class="field">
+                <label for="bTotal">Total tracks</label>
+                <input id="bTotal" type="text" inputmode="numeric" placeholder="auto">
+              </div>
+            </div>
+            <div class="field full">
+              <label for="bComment">Comment / Notes</label>
+              <textarea id="bComment" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <p class="batch-hint">Fields left blank stay untouched on every track. Type into a field (or clear it) to overwrite that field on all checked tracks. Track order above controls auto-numbering only.</p>
+
+        <div class="actions-row">
+          <button class="btn primary" id="batchApplyBtn">Apply to selected</button>
+          <button class="btn" id="batchClearBtn">Clear selection</button>
+          <span class="save-hint" id="batchDirtyHint"></span>
         </div>
       </div>
     </div>
@@ -835,12 +1040,19 @@
   var tracks = [];
   var activeId = null;
   var nextId = 1;
+  var selectedIds = new Set();
+  var batchOrder = [];
+  var batchModeActive = false;
+  var batchTouched = { artist:false, album:false, albumArtist:false, genre:false, year:false, comment:false };
+  var batchArtState = { touched:false, picture:null };
 
   var els = {
     dropzone: document.getElementById('dropzone'),
     fileInput: document.getElementById('fileInput'),
     trayList: document.getElementById('trayList'),
     trayCount: document.getElementById('trayCount'),
+    selectionStatus: document.getElementById('selectionStatus'),
+    selectAllBtn: document.getElementById('selectAllBtn'),
     downloadAllBtn: document.getElementById('downloadAllBtn'),
     emptyState: document.getElementById('emptyState'),
     deckWrap: document.getElementById('deckWrap'),
@@ -866,7 +1078,28 @@
     resetBtn: document.getElementById('resetBtn'),
     dirtyHint: document.getElementById('dirtyHint'),
     genreList: document.getElementById('genreList'),
-    toastStack: document.getElementById('toastStack')
+    toastStack: document.getElementById('toastStack'),
+    batchWrap: document.getElementById('batchWrap'),
+    batchCount: document.getElementById('batchCount'),
+    batchOrderList: document.getElementById('batchOrderList'),
+    batchArtFrame: document.getElementById('batchArtFrame'),
+    batchArtImg: document.getElementById('batchArtImg'),
+    batchArtPlaceholder: document.getElementById('batchArtPlaceholder'),
+    batchArtUploadBtn: document.getElementById('batchArtUploadBtn'),
+    batchArtRemoveBtn: document.getElementById('batchArtRemoveBtn'),
+    batchArtInput: document.getElementById('batchArtInput'),
+    bArtist: document.getElementById('bArtist'),
+    bAlbum: document.getElementById('bAlbum'),
+    bAlbumArtist: document.getElementById('bAlbumArtist'),
+    bGenre: document.getElementById('bGenre'),
+    bYear: document.getElementById('bYear'),
+    bAutoNumber: document.getElementById('bAutoNumber'),
+    bStartAt: document.getElementById('bStartAt'),
+    bTotal: document.getElementById('bTotal'),
+    bComment: document.getElementById('bComment'),
+    batchApplyBtn: document.getElementById('batchApplyBtn'),
+    batchClearBtn: document.getElementById('batchClearBtn'),
+    batchDirtyHint: document.getElementById('batchDirtyHint')
   };
 
   GENRE_ID3V1.slice().sort().forEach(function(g){
@@ -942,9 +1175,15 @@
         showToast('Couldn\u2019t read ' + file.name, 'error');
       }
     }
-    renderTray();
-    if (activeId === null && tracks.length){ selectTrack(tracks[0].id); }
+    if (activeId === null && tracks.length){ activeId = tracks[0].id; }
+    refresh();
     if (files.length) showToast(files.length + (files.length===1?' file':' files') + ' loaded.', 'success');
+  }
+
+  // Rebuilds the tray list DOM and the main panel (single / batch / empty).
+  function refresh(){
+    renderTray();
+    updateMainView();
   }
 
   function renderTray(){
@@ -955,14 +1194,23 @@
       btn.className = 'track-item' + (t.id === activeId ? ' active' : '');
       btn.setAttribute('data-id', t.id);
       btn.innerHTML =
+        '<input type="checkbox" class="track-check" aria-label="Select ' + escapeAttr(t.name) + ' for batch edit">' +
         '<span class="track-vu" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
         '<span class="track-name"></span>' +
         '<span class="track-dot' + (t.dirty ? ' show' : '') + '" title="Unsaved changes"></span>' +
         '<button class="track-remove" aria-label="Remove ' + escapeAttr(t.name) + '">&times;</button>';
       btn.querySelector('.track-name').textContent = t.name;
+      var chk = btn.querySelector('.track-check');
+      chk.checked = selectedIds.has(t.id);
+      chk.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      chk.addEventListener('change', function(){
+        if (chk.checked) selectedIds.add(t.id); else selectedIds.delete(t.id);
+        refresh();
+      });
       btn.addEventListener('click', function(ev){
-        if (ev.target.classList.contains('track-remove')) return;
-        selectTrack(t.id);
+        if (ev.target.classList.contains('track-remove') || ev.target.classList.contains('track-check')) return;
+        activeId = t.id;
+        refresh();
       });
       btn.querySelector('.track-remove').addEventListener('click', function(ev){
         ev.stopPropagation();
@@ -973,6 +1221,13 @@
     });
     els.trayCount.textContent = tracks.length + (tracks.length===1 ? ' loaded' : ' loaded');
     els.downloadAllBtn.disabled = tracks.length === 0;
+
+    var selCount = selectedIds.size;
+    els.selectionStatus.textContent = selCount > 0
+      ? selCount + ' selected' + (selCount >= 2 ? ' \u2014 batch editing' : '')
+      : 'Check tracks to batch edit';
+    els.selectAllBtn.disabled = tracks.length === 0;
+    els.selectAllBtn.textContent = (selCount > 0 && selCount === tracks.length) ? 'Clear' : 'Select all';
   }
 
   function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
@@ -981,11 +1236,12 @@
     var t = getTrack(id);
     if (t && t.artUrl) URL.revokeObjectURL(t.artUrl);
     tracks = tracks.filter(function(t){ return t.id !== id; });
+    selectedIds.delete(id);
+    batchOrder = batchOrder.filter(function(bid){ return bid !== id; });
     if (activeId === id){
       activeId = tracks.length ? tracks[0].id : null;
     }
-    renderTray();
-    if (activeId !== null) selectTrack(activeId); else showEmptyState();
+    refresh();
   }
 
   function getTrack(id){
@@ -996,11 +1252,42 @@
   function showEmptyState(){
     els.emptyState.hidden = false;
     els.deckWrap.hidden = true;
+    els.batchWrap.hidden = true;
   }
 
+  // Decides which of the three main-panel views to show: empty, single-track, or batch.
+  function updateMainView(){
+    var selCount = selectedIds.size;
+    var isBatch = selCount >= 2;
+    if (isBatch && !batchModeActive){ resetBatchForm(); }
+    batchModeActive = isBatch;
+
+    if (isBatch){
+      els.emptyState.hidden = true;
+      els.deckWrap.hidden = true;
+      els.batchWrap.hidden = false;
+      renderBatchPanel();
+      return;
+    }
+
+    els.batchWrap.hidden = true;
+    if (activeId === null || !getTrack(activeId)){
+      activeId = tracks.length ? tracks[0].id : null;
+    }
+    if (activeId === null){
+      showEmptyState();
+    } else {
+      renderSingleTrackView(activeId);
+    }
+  }
+
+  // Kept as a small wrapper so other handlers can "select and show" a track in one call.
   function selectTrack(id){
     activeId = id;
-    renderTray();
+    refresh();
+  }
+
+  function renderSingleTrackView(id){
     var t = getTrack(id);
     if (!t) { showEmptyState(); return; }
     els.emptyState.hidden = true;
@@ -1022,6 +1309,87 @@
 
     renderArt(t);
     updateDirtyHint(t);
+  }
+
+  /* ---- batch editing (multiple selected tracks) ---- */
+
+  function syncBatchOrder(){
+    batchOrder = batchOrder.filter(function(id){ return selectedIds.has(id); });
+    tracks.forEach(function(t){
+      if (selectedIds.has(t.id) && batchOrder.indexOf(t.id) === -1) batchOrder.push(t.id);
+    });
+  }
+
+  function resetBatchForm(){
+    batchTouched = { artist:false, album:false, albumArtist:false, genre:false, year:false, comment:false };
+    batchArtState = { touched:false, picture:null };
+    els.bArtist.value = '';
+    els.bAlbum.value = '';
+    els.bAlbumArtist.value = '';
+    els.bGenre.value = '';
+    els.bYear.value = '';
+    els.bComment.value = '';
+    els.bAutoNumber.checked = false;
+    els.bStartAt.value = '1';
+    els.bTotal.value = '';
+    renderBatchArt();
+  }
+
+  function renderBatchPanel(){
+    syncBatchOrder();
+    els.batchCount.textContent = batchOrder.length + (batchOrder.length===1 ? ' track selected' : ' tracks selected');
+    renderBatchOrderList();
+  }
+
+  function renderBatchOrderList(){
+    els.batchOrderList.innerHTML = '';
+    batchOrder.forEach(function(id, idx){
+      var t = getTrack(id);
+      if (!t) return;
+      var li = document.createElement('li');
+      li.className = 'batch-order-row';
+      li.innerHTML =
+        '<span class="idx"></span>' +
+        '<span class="oname"></span>' +
+        '<span class="ord-btns">' +
+          '<button type="button" data-dir="up" aria-label="Move up">&uarr;</button>' +
+          '<button type="button" data-dir="down" aria-label="Move down">&darr;</button>' +
+        '</span>';
+      li.querySelector('.idx').textContent = (idx+1) + ' / ' + batchOrder.length;
+      li.querySelector('.oname').textContent = t.name;
+      var upBtn = li.querySelector('[data-dir="up"]');
+      var downBtn = li.querySelector('[data-dir="down"]');
+      upBtn.disabled = idx === 0;
+      downBtn.disabled = idx === batchOrder.length - 1;
+      upBtn.addEventListener('click', function(){ moveBatchOrder(idx, idx-1); });
+      downBtn.addEventListener('click', function(){ moveBatchOrder(idx, idx+1); });
+      els.batchOrderList.appendChild(li);
+    });
+  }
+
+  function moveBatchOrder(from, to){
+    if (to < 0 || to >= batchOrder.length) return;
+    var tmp = batchOrder[from];
+    batchOrder[from] = batchOrder[to];
+    batchOrder[to] = tmp;
+    renderBatchOrderList();
+  }
+
+  function renderBatchArt(){
+    if (batchArtState.touched && batchArtState.picture && batchArtState.picture.data.length){
+      var blob = new Blob([batchArtState.picture.data], { type: batchArtState.picture.mime || 'image/jpeg' });
+      els.batchArtImg.src = URL.createObjectURL(blob);
+      els.batchArtImg.hidden = false;
+      els.batchArtPlaceholder.hidden = true;
+    } else if (batchArtState.touched && !batchArtState.picture){
+      els.batchArtImg.hidden = true;
+      els.batchArtPlaceholder.hidden = false;
+      els.batchArtPlaceholder.innerHTML = 'WILL<br>REMOVE';
+    } else {
+      els.batchArtImg.hidden = true;
+      els.batchArtPlaceholder.hidden = false;
+      els.batchArtPlaceholder.innerHTML = 'ART<br>UNCHANGED';
+    }
   }
 
   function renderArt(t){
@@ -1118,6 +1486,93 @@
     showToast('Reverted to loaded tags.');
   });
 
+  /* ---- multi-select / batch editing wiring ---- */
+
+  els.selectAllBtn.addEventListener('click', function(){
+    if (!tracks.length) return;
+    if (selectedIds.size === tracks.length){
+      selectedIds.clear();
+    } else {
+      selectedIds = new Set(tracks.map(function(t){ return t.id; }));
+    }
+    refresh();
+  });
+
+  function bindBatchField(el, key){
+    el.addEventListener('input', function(){ batchTouched[key] = true; });
+  }
+  bindBatchField(els.bArtist, 'artist');
+  bindBatchField(els.bAlbum, 'album');
+  bindBatchField(els.bAlbumArtist, 'albumArtist');
+  bindBatchField(els.bGenre, 'genre');
+  bindBatchField(els.bYear, 'year');
+  bindBatchField(els.bComment, 'comment');
+
+  els.batchArtUploadBtn.addEventListener('click', function(){ els.batchArtInput.click(); });
+  els.batchArtRemoveBtn.addEventListener('click', function(){
+    batchArtState = { touched:true, picture:null };
+    renderBatchArt();
+  });
+  els.batchArtInput.addEventListener('change', async function(){
+    if (!els.batchArtInput.files.length) return;
+    var file = els.batchArtInput.files[0];
+    try{
+      var buf = await file.arrayBuffer();
+      batchArtState = { touched:true, picture: { mime: file.type || 'image/jpeg', type: 3, data: new Uint8Array(buf) } };
+      renderBatchArt();
+    } catch(e){
+      showToast('Couldn\u2019t read that image.', 'error');
+    }
+    els.batchArtInput.value = '';
+  });
+
+  els.batchApplyBtn.addEventListener('click', function(){
+    syncBatchOrder();
+    if (batchOrder.length < 2){
+      showToast('Select at least two tracks to batch edit.', 'error');
+      return;
+    }
+    var autoNumber = els.bAutoNumber.checked;
+    var startAt = parseInt(els.bStartAt.value, 10);
+    if (!startAt || startAt < 1) startAt = 1;
+    var total = parseInt(els.bTotal.value, 10);
+    if (!total || total < batchOrder.length) total = batchOrder.length;
+
+    var anyFieldTouched = batchTouched.artist || batchTouched.album || batchTouched.albumArtist ||
+      batchTouched.genre || batchTouched.year || batchTouched.comment;
+    if (!anyFieldTouched && !autoNumber && !batchArtState.touched){
+      showToast('Nothing to apply \u2014 fill in at least one field.', 'error');
+      return;
+    }
+
+    batchOrder.forEach(function(id, idx){
+      var t = getTrack(id);
+      if (!t) return;
+      if (batchTouched.artist) t.tags.artist = els.bArtist.value;
+      if (batchTouched.album) t.tags.album = els.bAlbum.value;
+      if (batchTouched.albumArtist) t.tags.albumArtist = els.bAlbumArtist.value;
+      if (batchTouched.genre) t.tags.genre = els.bGenre.value;
+      if (batchTouched.year) t.tags.year = els.bYear.value;
+      if (batchTouched.comment) t.tags.comment = els.bComment.value;
+      if (autoNumber) t.tags.track = String(startAt + idx) + '/' + String(total);
+      if (batchArtState.touched) t.picture = batchArtState.picture ? clonePicture(batchArtState.picture) : null;
+      t.dirty = true;
+    });
+
+    showToast('Applied to ' + batchOrder.length + ' tracks.', 'success');
+    selectedIds.clear();
+    batchOrder = [];
+    resetBatchForm();
+    refresh();
+  });
+
+  els.batchClearBtn.addEventListener('click', function(){
+    selectedIds.clear();
+    batchOrder = [];
+    resetBatchForm();
+    refresh();
+  });
+
   els.downloadAllBtn.addEventListener('click', async function(){
     if (!tracks.length) return;
     if (typeof JSZip === 'undefined'){
@@ -1195,7 +1650,7 @@
   document.addEventListener('dragover', function(e){ e.preventDefault(); });
   document.addEventListener('drop', function(e){ e.preventDefault(); });
 
-  renderTray();
+  refresh();
 })();
 </script>
 </body>
