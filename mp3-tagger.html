@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP3 Tagger — Tag Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#171614;
+    --panel:#211f1c;
+    --panel-raised:#28241f;
+    --line:#3a352c;
+    --line-soft:#2b2822;
+    --text:#ede6d6;
+    --text-dim:#948c7c;
+    --text-faint:#5f594c;
+    --amber:#f2a03d;
+    --amber-dim:#8a5f26;
+    --red:#d6503c;
+    --green:#7fa86b;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #221f1a 0%, transparent 60%),
+      repeating-linear-gradient(180deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--amber); color:#1a1712; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--panel); }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:6px; }
+
+  .eyebrow{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+
+  header.deck-head{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    padding:18px 24px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #1c1a17, #171614);
+  }
+  .power-led{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 6px 1px rgba(242,160,61,.7);
+    animation:pulse 2.6s ease-in-out infinite;
+    flex-shrink:0;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.45;} }
+  h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    letter-spacing:.04em;
+    font-size:20px;
+    margin:0;
+    text-transform:uppercase;
+  }
+  .subtitle{
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:2px;
+    letter-spacing:.02em;
+  }
+  .head-meta{
+    margin-left:auto;
+    font-size:10.5px;
+    color:var(--text-faint);
+    text-align:right;
+    line-height:1.5;
+    letter-spacing:.04em;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    min-height:calc(100vh - 68px);
+  }
+  @media (max-width:820px){
+    .layout{ grid-template-columns:1fr; }
+  }
+
+  /* ---------- TRAY (sidebar) ---------- */
+  aside.tray{
+    border-right:1px solid var(--line);
+    background:var(--panel);
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    padding:22px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    background:var(--panel-raised);
+  }
+  .dropzone:hover, .dropzone.dragover{
+    border-color:var(--amber);
+    background:#2c2820;
+  }
+  .dropzone .glyph{
+    font-size:20px;
+    color:var(--amber);
+    display:block;
+    margin-bottom:6px;
+  }
+  .dropzone .label{
+    font-family:'Oswald', sans-serif;
+    letter-spacing:.08em;
+    font-size:12px;
+    text-transform:uppercase;
+    color:var(--text);
+  }
+  .dropzone .hint{
+    font-size:10.5px;
+    color:var(--text-faint);
+    margin-top:4px;
+  }
+
+  .tray-list-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .tray-count{ color:var(--text-faint); font-size:10.5px; }
+
+  .tray-list{
+    list-style:none;
+    margin:0; padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    overflow-y:auto;
+    flex:1;
+  }
+  .track-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    width:100%;
+    text-align:left;
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--text);
+    padding:8px 8px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    position:relative;
+  }
+  .track-item:hover{ background:var(--panel-raised); }
+  .track-item.active{
+    background:#2c2620;
+    border-color:var(--amber-dim);
+  }
+  .track-vu{
+    display:flex;
+    align-items:flex-end;
+    gap:1.5px;
+    height:14px;
+    flex-shrink:0;
+  }
+  .track-vu i{
+    display:block;
+    width:2.5px;
+    background:var(--amber-dim);
+    border-radius:1px;
+  }
+  .track-item.active .track-vu i{ background:var(--amber); }
+  .track-vu i:nth-child(1){ height:40%; animation:vu 1.6s ease-in-out infinite; }
+  .track-vu i:nth-child(2){ height:80%; animation:vu 1.9s ease-in-out infinite .15s; }
+  .track-vu i:nth-child(3){ height:55%; animation:vu 1.3s ease-in-out infinite .3s; }
+  .track-vu i:nth-child(4){ height:100%; animation:vu 2.1s ease-in-out infinite .45s; }
+  @keyframes vu{ 0%,100%{ transform:scaleY(.5); } 50%{ transform:scaleY(1); } }
+  @media (prefers-reduced-motion:reduce){
+    .track-vu i, .power-led, .reel{ animation:none !important; }
+  }
+
+  .track-name{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .track-dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--red);
+    flex-shrink:0;
+    opacity:0;
+  }
+  .track-dot.show{ opacity:1; }
+  .track-remove{
+    opacity:0;
+    background:none; border:none; color:var(--text-faint);
+    cursor:pointer; font-size:13px; padding:0 2px;
+    flex-shrink:0;
+  }
+  .track-item:hover .track-remove{ opacity:1; }
+  .track-remove:hover{ color:var(--red); }
+
+  .tray-footer{
+    border-top:1px solid var(--line);
+    padding-top:12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  /* ---------- BUTTONS ---------- */
+  button{ font-family:'Oswald', sans-serif; }
+  .btn{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    font-size:12px;
+    padding:10px 14px;
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    background:var(--panel-raised);
+    color:var(--text);
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .btn:hover{ border-color:var(--amber-dim); color:var(--amber); }
+  .btn:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:2px;
+  }
+  .btn.primary{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#1a1712;
+    font-weight:600;
+  }
+  .btn.primary:hover{ background:#ffb654; color:#1a1712; }
+  .btn.small{ padding:6px 10px; font-size:10.5px; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn:disabled:hover{ border-color:var(--line); color:var(--text); }
+
+  /* ---------- MAIN / EDITOR ---------- */
+  main.editor{
+    padding:28px 32px 60px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .empty-state{
+    margin-top:14vh;
+    text-align:center;
+    color:var(--text-dim);
+    max-width:360px;
+  }
+  .empty-state .cassette-illust{
+    margin:0 auto 18px;
+    width:140px;
+  }
+  .empty-state h2{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-size:15px;
+    color:var(--text);
+    margin:0 0 8px;
+  }
+  .empty-state p{ font-size:12px; line-height:1.6; margin:0; }
+
+  .deck-wrap{ width:100%; max-width:640px; }
+
+  /* cassette window */
+  .cassette{
+    background:linear-gradient(180deg, #241f1a, #1c1916);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px 20px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:18px;
+  }
+  .reel-window{ flex-shrink:0; }
+  .reel{ transform-origin:center; animation:spin 4.5s linear infinite; }
+  .reel.paused{ animation-play-state:paused; }
+  @keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+  .filename-readout{
+    flex:1;
+    min-width:0;
+  }
+  .filename-readout .tag{
+    font-size:9.5px;
+    letter-spacing:.12em;
+    color:var(--text-faint);
+    text-transform:uppercase;
+    display:block;
+    margin-bottom:3px;
+  }
+  .filename-readout .fname{
+    font-size:13px;
+    color:var(--amber);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    display:block;
+  }
+  .filename-readout .fmeta{
+    font-size:10px;
+    color:var(--text-faint);
+    margin-top:3px;
+  }
+
+  /* label card */
+  .label-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:22px;
+    position:relative;
+  }
+  .label-card::before{
+    content:"";
+    position:absolute;
+    inset:8px;
+    border:1px dashed var(--line-soft);
+    border-radius:3px;
+    pointer-events:none;
+  }
+  .label-body{
+    display:flex;
+    gap:22px;
+    position:relative;
+  }
+  .art-block{
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .art-frame{
+    width:118px; height:118px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-faint);
+    font-size:10px;
+    text-align:center;
+    overflow:hidden;
+    position:relative;
+  }
+  .art-frame img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .art-actions{ display:flex; gap:6px; }
+
+  .fields{
+    flex:1;
+    min-width:0;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px 16px;
+  }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field.full{ grid-column:1 / -1; }
+  .field label{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    font-size:10px;
+    color:var(--text-dim);
+  }
+  .field input, .field textarea{
+    background:#141210;
+    border:1px solid var(--line);
+    border-radius:2px;
+    color:var(--amber);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    padding:8px 9px;
+    width:100%;
+  }
+  .field input:focus, .field textarea:focus{
+    outline:none;
+    border-color:var(--amber-dim);
+    background:#181512;
+  }
+  .field textarea{ resize:vertical; min-height:52px; font-size:12px; }
+  .field-row3{ grid-column:1 / -1; display:grid; grid-template-columns:1fr 2fr 1fr; gap:16px; }
+
+  @media (max-width:520px){
+    .label-body{ flex-direction:column; }
+    .fields{ grid-template-columns:1fr; }
+    .field-row3{ grid-template-columns:1fr; }
+  }
+
+  .actions-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+  .save-hint{
+    font-size:10.5px;
+    color:var(--text-faint);
+    margin-left:auto;
+  }
+
+  .toast-stack{
+    position:fixed;
+    bottom:18px; right:18px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    z-index:50;
+  }
+  .toast{
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    color:var(--text);
+    font-size:12px;
+    padding:10px 14px;
+    border-radius:2px;
+    box-shadow:0 6px 18px rgba(0,0,0,.4);
+    max-width:280px;
+    animation:toastin .18s ease;
+  }
+  .toast.error{ border-left-color:var(--red); }
+  .toast.success{ border-left-color:var(--green); }
+  @keyframes toastin{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body>
+
+<header class="deck-head">
+  <span class="power-led" aria-hidden="true"></span>
+  <div>
+    <h1>MP3 Tagger</h1>
+    <div class="subtitle">Load tracks, print new labels, export.</div>
+  </div>
+  <div class="head-meta">ID3v2.3 · RUNS ENTIRELY IN YOUR BROWSER<br>NOTHING IS UPLOADED</div>
+</header>
+
+<div class="layout">
+  <aside class="tray">
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Load MP3 files">
+      <span class="glyph" aria-hidden="true">&#9167;</span>
+      <span class="label">Load MP3s</span>
+      <div class="hint">Drop files here or click to browse</div>
+    </div>
+    <input type="file" id="fileInput" accept=".mp3,audio/mpeg" multiple hidden>
+
+    <div class="tray-list-head">
+      <span class="eyebrow">Tray</span>
+      <span class="tray-count" id="trayCount">0 loaded</span>
+    </div>
+    <ul class="tray-list" id="trayList"></ul>
+
+    <div class="tray-footer">
+      <button class="btn small" id="downloadAllBtn" disabled>Export all (.zip)</button>
+    </div>
+  </aside>
+
+  <main class="editor" id="editorMain">
+    <div class="empty-state" id="emptyState">
+      <svg class="cassette-illust" viewBox="0 0 200 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="4" y="4" width="192" height="122" rx="8" stroke="#3a352c" stroke-width="2"/>
+        <circle cx="66" cy="65" r="24" stroke="#3a352c" stroke-width="2"/>
+        <circle cx="66" cy="65" r="7" fill="#3a352c"/>
+        <circle cx="134" cy="65" r="24" stroke="#3a352c" stroke-width="2"/>
+        <circle cx="134" cy="65" r="7" fill="#3a352c"/>
+        <rect x="40" y="98" width="120" height="10" rx="2" stroke="#3a352c" stroke-width="2"/>
+      </svg>
+      <h2>Nothing loaded on the deck</h2>
+      <p>Drop an MP3 file (or several) into the tray on the left to read its tags and start editing.</p>
+    </div>
+
+    <div class="deck-wrap" id="deckWrap" hidden>
+      <div class="cassette">
+        <svg class="reel-window" width="60" height="44" viewBox="0 0 60 44" aria-hidden="true">
+          <circle class="reel" id="reelL" cx="17" cy="22" r="15" fill="none" stroke="#4a4436" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="17" cy="22" r="4" fill="#4a4436"/>
+          <circle class="reel" id="reelR" cx="43" cy="22" r="15" fill="none" stroke="#4a4436" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="43" cy="22" r="4" fill="#4a4436"/>
+        </svg>
+        <div class="filename-readout">
+          <span class="tag">Now loaded</span>
+          <span class="fname" id="readoutName">—</span>
+          <span class="fmeta" id="readoutMeta"></span>
+        </div>
+      </div>
+
+      <div class="label-card">
+        <div class="label-body">
+          <div class="art-block">
+            <div class="art-frame" id="artFrame">
+              <span id="artPlaceholder">NO<br>ARTWORK</span>
+              <img id="artImg" hidden alt="Album artwork">
+            </div>
+            <div class="art-actions">
+              <button class="btn small" id="artUploadBtn">+ Art</button>
+              <button class="btn small" id="artRemoveBtn">Remove</button>
+            </div>
+            <input type="file" id="artInput" accept="image/*" hidden>
+          </div>
+
+          <div class="fields">
+            <div class="field full">
+              <label for="fTitle">Title</label>
+              <input id="fTitle" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fArtist">Artist</label>
+              <input id="fArtist" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fAlbum">Album</label>
+              <input id="fAlbum" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fAlbumArtist">Album Artist</label>
+              <input id="fAlbumArtist" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fGenre">Genre</label>
+              <input id="fGenre" type="text" list="genreList" autocomplete="off">
+              <datalist id="genreList"></datalist>
+            </div>
+            <div class="field-row3">
+              <div class="field">
+                <label for="fYear">Year</label>
+                <input id="fYear" type="text" inputmode="numeric" maxlength="4">
+              </div>
+              <div class="field">
+                <label for="fTrack">Track #</label>
+                <input id="fTrack" type="text" placeholder="e.g. 4/12">
+              </div>
+              <div class="field">
+                <label for="fComment">&nbsp;</label>
+                <input id="fComment2" type="text" hidden>
+              </div>
+            </div>
+            <div class="field full">
+              <label for="fComment">Comment / Notes</label>
+              <textarea id="fComment" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn primary" id="saveBtn">Export tagged MP3</button>
+          <button class="btn" id="resetBtn">Reset to original</button>
+          <span class="save-hint" id="dirtyHint"></span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ ID3 binary helpers ============ */
+
+  function synchsafeDecode(b){ return ((b[0]&0x7F)<<21)|((b[1]&0x7F)<<14)|((b[2]&0x7F)<<7)|(b[3]&0x7F); }
+  function synchsafeEncode(n){ return new Uint8Array([ (n>>>21)&0x7F, (n>>>14)&0x7F, (n>>>7)&0x7F, n&0x7F ]); }
+  function readUint32BE(b, o){ return ((b[o]<<24) | (b[o+1]<<16) | (b[o+2]<<8) | b[o+3])>>>0; }
+  function uint32BE(n){ return new Uint8Array([(n>>>24)&0xFF,(n>>>16)&0xFF,(n>>>8)&0xFF,n&0xFF]); }
+  function isLatin1(str){ return /^[\x00-\xFF]*$/.test(str); }
+
+  function decodeEncodedString(data, enc){
+    if (data.length === 0) return '';
+    if (enc === 0){
+      let s=''; for (let i=0;i<data.length;i++){ if (data[i]===0) break; s += String.fromCharCode(data[i]); }
+      return s;
+    }
+    if (enc === 3){
+      let idx = data.indexOf(0);
+      const slice = idx >= 0 ? data.subarray(0, idx) : data;
+      try { return new TextDecoder('utf-8').decode(slice); } catch(e){ return ''; }
+    }
+    // enc 1 (UTF-16 w/ BOM) or 2 (UTF-16BE)
+    let little = true, start = 0;
+    if (enc === 1){
+      if (data.length>=2 && data[0]===0xFF && data[1]===0xFE){ little=true; start=2; }
+      else if (data.length>=2 && data[0]===0xFE && data[1]===0xFF){ little=false; start=2; }
+    } else {
+      little = false;
+    }
+    const chars = [];
+    for (let i=start; i+1<data.length; i+=2){
+      const b0=data[i], b1=data[i+1];
+      const code = little ? (b1<<8|b0) : (b0<<8|b1);
+      if (code === 0) break;
+      chars.push(code);
+    }
+    return String.fromCharCode.apply(null, chars);
+  }
+
+  function decodeTextFrame(payload){
+    if (payload.length===0) return '';
+    const enc = payload[0];
+    return decodeEncodedString(payload.subarray(1), enc).replace(/\u0000+$/,'');
+  }
+
+  function decodeCommFrame(payload){
+    if (payload.length < 5) return '';
+    const enc = payload[0];
+    const rest = payload.subarray(4); // skip encoding(1) + lang(3)
+    if (enc===0 || enc===3){
+      const idx = rest.indexOf(0);
+      if (idx < 0) return '';
+      return decodeEncodedString(rest.subarray(idx+1), enc);
+    } else {
+      let idx = -1;
+      for (let i=0;i+1<rest.length;i+=2){ if (rest[i]===0 && rest[i+1]===0){ idx=i; break; } }
+      if (idx < 0) return '';
+      return decodeEncodedString(rest.subarray(idx+2), enc);
+    }
+  }
+
+  function decodeApicFrame(payload){
+    try{
+      const enc = payload[0];
+      let offset = 1;
+      let mimeEnd = payload.indexOf(0, offset);
+      if (mimeEnd < 0) mimeEnd = offset;
+      const mime = String.fromCharCode.apply(null, payload.subarray(offset, mimeEnd)) || 'image/jpeg';
+      offset = mimeEnd + 1;
+      const pictureType = payload[offset]; offset += 1;
+      if (enc===0 || enc===3){
+        let descEnd = payload.indexOf(0, offset);
+        if (descEnd < 0) descEnd = offset;
+        offset = descEnd + 1;
+      } else {
+        let idx = -1;
+        for (let i=offset; i+1<payload.length; i+=2){ if (payload[i]===0 && payload[i+1]===0){ idx=i; break; } }
+        offset = idx >= 0 ? idx+2 : offset;
+      }
+      const data = payload.subarray(offset);
+      return { mime: mime, type: pictureType, data: data.slice() };
+    } catch(e){ return null; }
+  }
+
+  var GENRE_ID3V1 = ["Blues","Classic Rock","Country","Dance","Disco","Funk","Grunge","Hip-Hop","Jazz","Metal","New Age","Oldies","Other","Pop","R&B","Rap","Reggae","Rock","Techno","Industrial","Alternative","Ska","Death Metal","Pranks","Soundtrack","Euro-Techno","Ambient","Trip-Hop","Vocal","Jazz+Funk","Fusion","Trance","Classical","Instrumental","Acid","House","Game","Sound Clip","Gospel","Noise","Alternative Rock","Bass","Soul","Punk","Space","Meditative","Instrumental Pop","Instrumental Rock","Ethnic","Gothic","Darkwave","Techno-Industrial","Electronic","Pop-Folk","Eurodance","Dream","Southern Rock","Comedy","Cult","Gangsta","Top 40","Christian Rap","Pop/Funk","Jungle","Native US","Cabaret","New Wave","Psychedelic","Rave","Showtunes","Trailer","Lo-Fi","Tribal","Acid Punk","Acid Jazz","Polka","Retro","Musical","Rock & Roll","Hard Rock"];
+
+  function normalizeGenre(s){
+    const m = s && s.match(/^\((\d+)\)\s*$/);
+    if (m){ const i = parseInt(m[1],10); return GENRE_ID3V1[i] || s; }
+    return (s||'').replace(/\u0000/g,'');
+  }
+
+  function parseID3(buffer){
+    const bytes = new Uint8Array(buffer);
+    const result = { title:'', artist:'', album:'', albumArtist:'', year:'', genre:'', track:'', comment:'', picture:null, tagSize:0, hasID3v1:false };
+    if (bytes.length>=10 && bytes[0]===0x49 && bytes[1]===0x44 && bytes[2]===0x33){
+      const majorVersion = bytes[3];
+      const flags = bytes[5];
+      const size = synchsafeDecode(bytes.subarray(6,10));
+      const tagTotalSize = 10+size;
+      result.tagSize = Math.min(tagTotalSize, bytes.length);
+      let offset = 10;
+      if (flags & 0x40){
+        try{
+          const extSize = majorVersion===4 ? synchsafeDecode(bytes.subarray(offset,offset+4)) : readUint32BE(bytes, offset);
+          offset += extSize > 0 ? extSize : 0;
+        } catch(e){}
+      }
+      const tagEnd = result.tagSize;
+      while (offset + 10 <= tagEnd){
+        const b0=bytes[offset],b1=bytes[offset+1],b2=bytes[offset+2],b3=bytes[offset+3];
+        if (b0===0 && b1===0 && b2===0 && b3===0) break; // padding
+        const id = String.fromCharCode(b0,b1,b2,b3);
+        let frameSize;
+        if (majorVersion === 4) frameSize = synchsafeDecode(bytes.subarray(offset+4,offset+8));
+        else frameSize = readUint32BE(bytes, offset+4);
+        const frameStart = offset+10;
+        const frameEnd = frameStart+frameSize;
+        if (frameSize < 0 || frameEnd > tagEnd) break;
+        const payload = bytes.subarray(frameStart, frameEnd);
+        try{
+          switch(id){
+            case 'TIT2': result.title = decodeTextFrame(payload); break;
+            case 'TPE1': result.artist = decodeTextFrame(payload); break;
+            case 'TALB': result.album = decodeTextFrame(payload); break;
+            case 'TPE2': result.albumArtist = decodeTextFrame(payload); break;
+            case 'TYER': result.year = decodeTextFrame(payload); break;
+            case 'TDRC': if(!result.year) result.year = decodeTextFrame(payload).slice(0,4); break;
+            case 'TCON': result.genre = normalizeGenre(decodeTextFrame(payload)); break;
+            case 'TRCK': result.track = decodeTextFrame(payload); break;
+            case 'COMM': if(!result.comment) result.comment = decodeCommFrame(payload); break;
+            case 'APIC': if(!result.picture) result.picture = decodeApicFrame(payload); break;
+          }
+        } catch(e){ /* skip malformed frame */ }
+        offset = frameEnd;
+      }
+    }
+    if (bytes.length >= 128){
+      const t = bytes.subarray(bytes.length-128, bytes.length-125);
+      if (t[0]===0x54 && t[1]===0x41 && t[2]===0x47) result.hasID3v1 = true;
+    }
+    return result;
+  }
+
+  function encodeStringBytes(str, enc){
+    if (enc === 0){
+      const arr = new Uint8Array(str.length);
+      for (let i=0;i<str.length;i++) arr[i] = str.charCodeAt(i) & 0xFF;
+      return arr;
+    }
+    const arr = new Uint8Array(2 + str.length*2);
+    arr[0]=0xFF; arr[1]=0xFE;
+    for (let i=0;i<str.length;i++){
+      const c = str.charCodeAt(i);
+      arr[2+i*2] = c & 0xFF;
+      arr[2+i*2+1] = (c>>8) & 0xFF;
+    }
+    return arr;
+  }
+
+  function buildFrame(id, payload){
+    const idBytes = new TextEncoder().encode(id);
+    const frame = new Uint8Array(10 + payload.length);
+    frame.set(idBytes, 0);
+    frame.set(uint32BE(payload.length), 4);
+    frame.set(payload, 10);
+    return frame;
+  }
+
+  function buildTextFrame(id, value){
+    if (!value) return null;
+    const enc = isLatin1(value) ? 0 : 1;
+    const strBytes = encodeStringBytes(value, enc);
+    const payload = new Uint8Array(1 + strBytes.length);
+    payload[0] = enc;
+    payload.set(strBytes, 1);
+    return buildFrame(id, payload);
+  }
+
+  function buildCommFrame(value){
+    if (!value) return null;
+    const enc = isLatin1(value) ? 0 : 1;
+    const lang = new Uint8Array([0x65,0x6e,0x67]);
+    const descTerm = enc===0 ? new Uint8Array([0]) : new Uint8Array([0,0]);
+    const textBytes = encodeStringBytes(value, enc);
+    const payload = new Uint8Array(1+3+descTerm.length+textBytes.length);
+    let o=0;
+    payload[o++]=enc;
+    payload.set(lang,o); o+=3;
+    payload.set(descTerm,o); o+=descTerm.length;
+    payload.set(textBytes,o);
+    return buildFrame('COMM', payload);
+  }
+
+  function buildApicFrame(picture){
+    if (!picture) return null;
+    const mimeBytes = new TextEncoder().encode(picture.mime || 'image/jpeg');
+    const payload = new Uint8Array(1 + mimeBytes.length + 1 + 1 + 1 + picture.data.length);
+    let o=0;
+    payload[o++]=0;
+    payload.set(mimeBytes,o); o+=mimeBytes.length;
+    payload[o++]=0;
+    payload[o++]=3;
+    payload[o++]=0;
+    payload.set(picture.data,o);
+    return buildFrame('APIC', payload);
+  }
+
+  function buildTagBytes(tags, picture){
+    const frames = [];
+    function pushIf(f){ if (f) frames.push(f); }
+    pushIf(buildTextFrame('TIT2', tags.title));
+    pushIf(buildTextFrame('TPE1', tags.artist));
+    pushIf(buildTextFrame('TALB', tags.album));
+    pushIf(buildTextFrame('TPE2', tags.albumArtist));
+    pushIf(buildTextFrame('TYER', tags.year));
+    pushIf(buildTextFrame('TCON', tags.genre));
+    pushIf(buildTextFrame('TRCK', tags.track));
+    pushIf(buildCommFrame(tags.comment));
+    pushIf(buildApicFrame(picture));
+    const totalLen = frames.reduce(function(a,f){ return a+f.length; }, 0);
+    const header = new Uint8Array(10);
+    header[0]=0x49; header[1]=0x44; header[2]=0x33;
+    header[3]=3; header[4]=0;
+    header[5]=0;
+    header.set(synchsafeEncode(totalLen), 6);
+    const tag = new Uint8Array(10+totalLen);
+    tag.set(header,0);
+    let o=10;
+    for (let i=0;i<frames.length;i++){ tag.set(frames[i], o); o += frames[i].length; }
+    return tag;
+  }
+
+  function rebuildFileBytes(track){
+    const original = new Uint8Array(track.arrayBuffer);
+    const audioStart = track.parsed.tagSize || 0;
+    let audioEnd = original.length;
+    if (track.parsed.hasID3v1) audioEnd -= 128;
+    if (audioEnd < audioStart) audioEnd = original.length;
+    const audioBytes = original.subarray(audioStart, audioEnd);
+    const tagBytes = buildTagBytes(track.tags, track.picture);
+    const out = new Uint8Array(tagBytes.length + audioBytes.length);
+    out.set(tagBytes, 0);
+    out.set(audioBytes, tagBytes.length);
+    return out;
+  }
+
+  /* ============ App state & UI ============ */
+
+  var tracks = [];
+  var activeId = null;
+  var nextId = 1;
+
+  var els = {
+    dropzone: document.getElementById('dropzone'),
+    fileInput: document.getElementById('fileInput'),
+    trayList: document.getElementById('trayList'),
+    trayCount: document.getElementById('trayCount'),
+    downloadAllBtn: document.getElementById('downloadAllBtn'),
+    emptyState: document.getElementById('emptyState'),
+    deckWrap: document.getElementById('deckWrap'),
+    readoutName: document.getElementById('readoutName'),
+    readoutMeta: document.getElementById('readoutMeta'),
+    reelL: document.getElementById('reelL'),
+    reelR: document.getElementById('reelR'),
+    artFrame: document.getElementById('artFrame'),
+    artImg: document.getElementById('artImg'),
+    artPlaceholder: document.getElementById('artPlaceholder'),
+    artUploadBtn: document.getElementById('artUploadBtn'),
+    artRemoveBtn: document.getElementById('artRemoveBtn'),
+    artInput: document.getElementById('artInput'),
+    fTitle: document.getElementById('fTitle'),
+    fArtist: document.getElementById('fArtist'),
+    fAlbum: document.getElementById('fAlbum'),
+    fAlbumArtist: document.getElementById('fAlbumArtist'),
+    fGenre: document.getElementById('fGenre'),
+    fYear: document.getElementById('fYear'),
+    fTrack: document.getElementById('fTrack'),
+    fComment: document.getElementById('fComment'),
+    saveBtn: document.getElementById('saveBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    dirtyHint: document.getElementById('dirtyHint'),
+    genreList: document.getElementById('genreList'),
+    toastStack: document.getElementById('toastStack')
+  };
+
+  GENRE_ID3V1.slice().sort().forEach(function(g){
+    var opt = document.createElement('option');
+    opt.value = g;
+    els.genreList.appendChild(opt);
+  });
+
+  function showToast(message, type){
+    var t = document.createElement('div');
+    t.className = 'toast' + (type ? ' '+type : '');
+    t.textContent = message;
+    els.toastStack.appendChild(t);
+    setTimeout(function(){
+      t.style.transition = 'opacity .25s ease';
+      t.style.opacity = '0';
+      setTimeout(function(){ t.remove(); }, 260);
+    }, 3200);
+  }
+
+  function formatSize(bytes){
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  function cloneTags(t){
+    return {
+      title: t.title, artist: t.artist, album: t.album, albumArtist: t.albumArtist,
+      year: t.year, genre: t.genre, track: t.track, comment: t.comment
+    };
+  }
+  function clonePicture(p){
+    if (!p) return null;
+    return { mime: p.mime, type: p.type, data: p.data.slice() };
+  }
+
+  async function handleFiles(fileList){
+    var files = Array.prototype.filter.call(fileList, function(f){
+      return /\.mp3$/i.test(f.name) || f.type === 'audio/mpeg';
+    });
+    if (files.length === 0 && fileList.length > 0){
+      showToast('Those files don\u2019t look like MP3s.', 'error');
+      return;
+    }
+    for (var i=0; i<files.length; i++){
+      var file = files[i];
+      try{
+        var buf = await file.arrayBuffer();
+        var parsed = parseID3(buf);
+        var picture = parsed.picture ? clonePicture(parsed.picture) : null;
+        var track = {
+          id: nextId++,
+          name: file.name,
+          size: file.size,
+          arrayBuffer: buf,
+          parsed: parsed,
+          tags: {
+            title: parsed.title, artist: parsed.artist, album: parsed.album,
+            albumArtist: parsed.albumArtist, year: parsed.year, genre: parsed.genre,
+            track: parsed.track, comment: parsed.comment
+          },
+          picture: picture,
+          originalTags: null,
+          originalPicture: null,
+          artUrl: null,
+          dirty: false
+        };
+        track.originalTags = cloneTags(track.tags);
+        track.originalPicture = clonePicture(track.picture);
+        tracks.push(track);
+      } catch(e){
+        showToast('Couldn\u2019t read ' + file.name, 'error');
+      }
+    }
+    renderTray();
+    if (activeId === null && tracks.length){ selectTrack(tracks[0].id); }
+    if (files.length) showToast(files.length + (files.length===1?' file':' files') + ' loaded.', 'success');
+  }
+
+  function renderTray(){
+    els.trayList.innerHTML = '';
+    tracks.forEach(function(t){
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.className = 'track-item' + (t.id === activeId ? ' active' : '');
+      btn.setAttribute('data-id', t.id);
+      btn.innerHTML =
+        '<span class="track-vu" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
+        '<span class="track-name"></span>' +
+        '<span class="track-dot' + (t.dirty ? ' show' : '') + '" title="Unsaved changes"></span>' +
+        '<button class="track-remove" aria-label="Remove ' + escapeAttr(t.name) + '">&times;</button>';
+      btn.querySelector('.track-name').textContent = t.name;
+      btn.addEventListener('click', function(ev){
+        if (ev.target.classList.contains('track-remove')) return;
+        selectTrack(t.id);
+      });
+      btn.querySelector('.track-remove').addEventListener('click', function(ev){
+        ev.stopPropagation();
+        removeTrack(t.id);
+      });
+      li.appendChild(btn);
+      els.trayList.appendChild(li);
+    });
+    els.trayCount.textContent = tracks.length + (tracks.length===1 ? ' loaded' : ' loaded');
+    els.downloadAllBtn.disabled = tracks.length === 0;
+  }
+
+  function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+
+  function removeTrack(id){
+    var t = getTrack(id);
+    if (t && t.artUrl) URL.revokeObjectURL(t.artUrl);
+    tracks = tracks.filter(function(t){ return t.id !== id; });
+    if (activeId === id){
+      activeId = tracks.length ? tracks[0].id : null;
+    }
+    renderTray();
+    if (activeId !== null) selectTrack(activeId); else showEmptyState();
+  }
+
+  function getTrack(id){
+    for (var i=0;i<tracks.length;i++) if (tracks[i].id===id) return tracks[i];
+    return null;
+  }
+
+  function showEmptyState(){
+    els.emptyState.hidden = false;
+    els.deckWrap.hidden = true;
+  }
+
+  function selectTrack(id){
+    activeId = id;
+    renderTray();
+    var t = getTrack(id);
+    if (!t) { showEmptyState(); return; }
+    els.emptyState.hidden = true;
+    els.deckWrap.hidden = false;
+
+    els.readoutName.textContent = t.name;
+    els.readoutMeta.textContent = formatSize(t.size) + (t.parsed.tagSize ? ' \u00b7 ID3v2 tag found' : ' \u00b7 no existing tag');
+    els.reelL.classList.remove('paused');
+    els.reelR.classList.remove('paused');
+
+    els.fTitle.value = t.tags.title || '';
+    els.fArtist.value = t.tags.artist || '';
+    els.fAlbum.value = t.tags.album || '';
+    els.fAlbumArtist.value = t.tags.albumArtist || '';
+    els.fGenre.value = t.tags.genre || '';
+    els.fYear.value = t.tags.year || '';
+    els.fTrack.value = t.tags.track || '';
+    els.fComment.value = t.tags.comment || '';
+
+    renderArt(t);
+    updateDirtyHint(t);
+  }
+
+  function renderArt(t){
+    if (t.artUrl){ URL.revokeObjectURL(t.artUrl); t.artUrl = null; }
+    if (t.picture && t.picture.data && t.picture.data.length){
+      var blob = new Blob([t.picture.data], { type: t.picture.mime || 'image/jpeg' });
+      t.artUrl = URL.createObjectURL(blob);
+      els.artImg.src = t.artUrl;
+      els.artImg.hidden = false;
+      els.artPlaceholder.hidden = true;
+    } else {
+      els.artImg.hidden = true;
+      els.artPlaceholder.hidden = false;
+    }
+  }
+
+  function updateDirtyHint(t){
+    els.dirtyHint.textContent = t.dirty ? 'Unsaved changes' : 'Matches loaded file';
+  }
+
+  function currentTrack(){ return getTrack(activeId); }
+
+  function markDirty(){
+    var t = currentTrack();
+    if (!t) return;
+    t.dirty = true;
+    updateDirtyHint(t);
+    renderTray();
+  }
+
+  function bindField(el, key){
+    el.addEventListener('input', function(){
+      var t = currentTrack();
+      if (!t) return;
+      t.tags[key] = el.value;
+      markDirty();
+    });
+  }
+  bindField(els.fTitle, 'title');
+  bindField(els.fArtist, 'artist');
+  bindField(els.fAlbum, 'album');
+  bindField(els.fAlbumArtist, 'albumArtist');
+  bindField(els.fGenre, 'genre');
+  bindField(els.fYear, 'year');
+  bindField(els.fTrack, 'track');
+  bindField(els.fComment, 'comment');
+
+  els.artUploadBtn.addEventListener('click', function(){ els.artInput.click(); });
+  els.artRemoveBtn.addEventListener('click', function(){
+    var t = currentTrack();
+    if (!t) return;
+    t.picture = null;
+    renderArt(t);
+    markDirty();
+  });
+  els.artInput.addEventListener('change', async function(){
+    var t = currentTrack();
+    if (!t || !els.artInput.files.length) return;
+    var file = els.artInput.files[0];
+    try{
+      var buf = await file.arrayBuffer();
+      t.picture = { mime: file.type || 'image/jpeg', type: 3, data: new Uint8Array(buf) };
+      renderArt(t);
+      markDirty();
+    } catch(e){
+      showToast('Couldn\u2019t read that image.', 'error');
+    }
+    els.artInput.value = '';
+  });
+
+  els.saveBtn.addEventListener('click', function(){
+    var t = currentTrack();
+    if (!t) return;
+    try{
+      var bytes = rebuildFileBytes(t);
+      var blob = new Blob([bytes], { type: 'audio/mpeg' });
+      triggerDownload(blob, t.name);
+      t.dirty = false;
+      updateDirtyHint(t);
+      renderTray();
+      showToast('Exported ' + t.name, 'success');
+    } catch(e){
+      showToast('Couldn\u2019t export this file.', 'error');
+    }
+  });
+
+  els.resetBtn.addEventListener('click', function(){
+    var t = currentTrack();
+    if (!t) return;
+    t.tags = cloneTags(t.originalTags);
+    t.picture = clonePicture(t.originalPicture);
+    t.dirty = false;
+    selectTrack(t.id);
+    showToast('Reverted to loaded tags.');
+  });
+
+  els.downloadAllBtn.addEventListener('click', async function(){
+    if (!tracks.length) return;
+    if (typeof JSZip === 'undefined'){
+      showToast('Zip library unavailable \u2014 export tracks individually.', 'error');
+      return;
+    }
+    els.downloadAllBtn.disabled = true;
+    var originalLabel = els.downloadAllBtn.textContent;
+    els.downloadAllBtn.textContent = 'Zipping\u2026';
+    try{
+      var zip = new JSZip();
+      var usedNames = {};
+      tracks.forEach(function(t){
+        var bytes = rebuildFileBytes(t);
+        var name = t.name;
+        if (usedNames[name]){
+          usedNames[name]++;
+          name = name.replace(/\.mp3$/i, '') + ' (' + usedNames[name] + ').mp3';
+        } else {
+          usedNames[name] = 1;
+        }
+        zip.file(name, bytes);
+      });
+      var content = await zip.generateAsync({ type: 'blob' });
+      triggerDownload(content, 'tagged-tracks.zip');
+      tracks.forEach(function(t){ t.dirty = false; });
+      renderTray();
+      showToast('Exported ' + tracks.length + ' tracks as a zip.', 'success');
+    } catch(e){
+      showToast('Zip export failed.', 'error');
+    } finally {
+      els.downloadAllBtn.disabled = false;
+      els.downloadAllBtn.textContent = originalLabel;
+    }
+  });
+
+  function triggerDownload(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  /* ---- dropzone / file input wiring ---- */
+  els.dropzone.addEventListener('click', function(){ els.fileInput.click(); });
+  els.dropzone.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); els.fileInput.click(); }
+  });
+  els.fileInput.addEventListener('change', function(){
+    if (els.fileInput.files.length) handleFiles(els.fileInput.files);
+    els.fileInput.value = '';
+  });
+  ['dragenter','dragover'].forEach(function(evt){
+    els.dropzone.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      els.dropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    els.dropzone.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      els.dropzone.classList.remove('dragover');
+    });
+  });
+  els.dropzone.addEventListener('drop', function(e){
+    var dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) handleFiles(dt.files);
+  });
+
+  // also allow dropping anywhere on the tray
+  document.addEventListener('dragover', function(e){ e.preventDefault(); });
+  document.addEventListener('drop', function(e){ e.preventDefault(); });
+
+  renderTray();
+})();
+</script>
+</body>
+</html>
