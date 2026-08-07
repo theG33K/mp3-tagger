@@ -503,6 +503,7 @@
   }
   .field textarea{ resize:vertical; min-height:52px; font-size:12px; }
   .field-row3{ grid-column:1 / -1; display:grid; grid-template-columns:1fr 2fr 1fr; gap:16px; }
+  .field-row3 > .field{ min-width:0; }
 
   @media (max-width:520px){
     .label-body{ flex-direction:column; }
@@ -616,24 +617,51 @@
   }
   .autonum-row{
     display:flex;
+    flex-wrap:wrap;
     align-items:center;
-    gap:6px;
+    gap:8px 12px;
     font-family:'IBM Plex Mono', monospace;
     font-size:11.5px;
     color:var(--text);
     background:var(--field-bg);
     border:1px solid var(--line);
     border-radius:2px;
-    padding:8px 9px;
+    padding:10px 12px;
   }
-  .autonum-row input[type="checkbox"]{ accent-color:var(--amber); flex-shrink:0; }
-  .autonum-row input[type="number"]{
-    width:48px;
+  .autonum-check{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    flex:0 0 auto;
+    color:var(--text);
+    text-transform:none;
+    letter-spacing:0;
+    font-size:11.5px;
+  }
+  .autonum-row input[type="checkbox"]{
+    accent-color:var(--amber);
+    flex:0 0 auto;
+    width:13px;
+    height:13px;
+    margin:0;
+  }
+  .autonum-sep{
+    flex:0 0 auto;
+    color:var(--text-dim);
+    text-transform:none;
+    letter-spacing:0;
+    font-size:11.5px;
+    white-space:nowrap;
+  }
+  .autonum-row input[type="number"], .autonum-row input#bTotal{
+    flex:0 0 64px;
+    width:64px;
     background:var(--field-bg-strong);
     border:1px solid var(--line);
     color:var(--amber);
     border-radius:2px;
-    padding:3px 5px;
+    padding:5px 7px;
     font-family:'IBM Plex Mono', monospace;
     font-size:11.5px;
   }
@@ -849,21 +877,20 @@
               <label for="bGenre">Genre</label>
               <input id="bGenre" type="text" list="genreList" autocomplete="off">
             </div>
-            <div class="field-row3">
-              <div class="field">
-                <label for="bYear">Year</label>
-                <input id="bYear" type="text" inputmode="numeric" maxlength="4">
-              </div>
-              <div class="field">
-                <label for="bAutoNumber">Track numbers</label>
-                <div class="autonum-row">
+            <div class="field">
+              <label for="bYear">Year</label>
+              <input id="bYear" type="text" inputmode="numeric" maxlength="4">
+            </div>
+            <div class="field full">
+              <label>Track numbers</label>
+              <div class="autonum-row">
+                <label class="autonum-check">
                   <input type="checkbox" id="bAutoNumber">
-                  <label for="bAutoNumber" style="text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--text-dim);">Start at</label>
-                  <input type="number" id="bStartAt" min="1" value="1">
-                </div>
-              </div>
-              <div class="field">
-                <label for="bTotal">Total tracks</label>
+                  <span>Auto-number</span>
+                </label>
+                <label class="autonum-sep" for="bStartAt">Start at</label>
+                <input type="number" id="bStartAt" min="1" value="1">
+                <label class="autonum-sep" for="bTotal">Total tracks</label>
                 <input id="bTotal" type="text" inputmode="numeric" placeholder="auto">
               </div>
             </div>
