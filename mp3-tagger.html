@@ -357,6 +357,7 @@
     font-weight:600;
   }
   .btn.primary:hover{ background:var(--amber-hover); border-color:var(--amber-hover); color:var(--on-amber); }
+  .btn.danger:hover{ border-color:var(--red); color:var(--red); }
   .btn.small{ padding:6px 10px; font-size:10.5px; }
   .btn:disabled{ opacity:.4; cursor:not-allowed; }
   .btn:disabled:hover{ border-color:var(--line); color:var(--text); }
@@ -699,6 +700,20 @@
   .toast.error{ border-left-color:var(--red); }
   .toast.success{ border-left-color:var(--green); }
   @keyframes toastin{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+
+  /* ---------- MOBILE: stack tray + editor and let the whole page scroll ---------- */
+  @media (max-width:820px){
+    .layout{ display:block; }
+    aside.tray{
+      overflow-y:visible;
+      min-height:0;
+      max-height:none;
+      border-right:none;
+      border-bottom:1px solid var(--line);
+    }
+    main.editor{ overflow-y:visible; min-height:0; }
+    .tray-list{ overflow-y:visible; flex:0 0 auto; max-height:none; }
+  }
 </style>
 </head>
 <body>
@@ -739,6 +754,7 @@
 
     <div class="tray-footer">
       <button class="btn small" id="downloadAllBtn" disabled>Export all (.zip)</button>
+      <button class="btn small danger" id="clearTrayBtn" disabled>Clear tray</button>
     </div>
   </aside>
 
@@ -1193,6 +1209,7 @@
     selectionStatus: document.getElementById('selectionStatus'),
     selectAllBtn: document.getElementById('selectAllBtn'),
     downloadAllBtn: document.getElementById('downloadAllBtn'),
+    clearTrayBtn: document.getElementById('clearTrayBtn'),
     emptyState: document.getElementById('emptyState'),
     deckWrap: document.getElementById('deckWrap'),
     readoutName: document.getElementById('readoutName'),
@@ -1265,6 +1282,41 @@
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
     return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  function sanitizeForFilename(s){
+    return (s || '')
+      .replace(/[\\/:*?"<>|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/[. ]+$/, '');
+  }
+
+  // Builds "Artist-Album.zip" for multiple tracks, or "Artist-Title.zip" for a single
+  // track, falling back gracefully when tags are missing or inconsistent across tracks.
+  function buildExportZipName(list){
+    if (!list.length) return 'tagged-tracks.zip';
+
+    var artistValues = list.map(function(t){ return (t.tags.artist || '').trim(); }).filter(Boolean);
+    var uniqueArtists = Array.from(new Set(artistValues));
+    var artistPart = uniqueArtists.length === 0 ? '' : (uniqueArtists.length === 1 ? uniqueArtists[0] : 'Various Artists');
+
+    var secondPart;
+    if (list.length > 1){
+      var albumValues = list.map(function(t){ return (t.tags.album || '').trim(); }).filter(Boolean);
+      secondPart = albumValues.length ? albumValues[0] : '';
+    } else {
+      secondPart = (list[0].tags.title || '').trim();
+      if (!secondPart) secondPart = list[0].name.replace(/\.mp3$/i, '');
+    }
+
+    artistPart = sanitizeForFilename(artistPart);
+    secondPart = sanitizeForFilename(secondPart);
+
+    if (artistPart && secondPart) return artistPart + '-' + secondPart + '.zip';
+    if (artistPart) return artistPart + '.zip';
+    if (secondPart) return secondPart + '.zip';
+    return 'tagged-tracks.zip';
   }
 
   function cloneTags(t){
@@ -1362,6 +1414,10 @@
     });
     els.trayCount.textContent = tracks.length + (tracks.length===1 ? ' loaded' : ' loaded');
     els.downloadAllBtn.disabled = tracks.length === 0;
+    els.clearTrayBtn.disabled = tracks.length === 0;
+    els.downloadAllBtn.textContent = selectedIds.size > 0
+      ? 'Export selected (.zip)'
+      : 'Export all (.zip)';
 
     var selCount = selectedIds.size;
     els.selectionStatus.textContent = selCount > 0
@@ -1383,6 +1439,24 @@
       activeId = tracks.length ? tracks[0].id : null;
     }
     refresh();
+  }
+
+  function clearTray(){
+    if (!tracks.length) return;
+    var count = tracks.length;
+    var confirmed = window.confirm(
+      'Remove all ' + count + (count === 1 ? ' track' : ' tracks') + ' from the tray? ' +
+      'Any unsaved changes will be lost. This only clears the tray \u2014 nothing is deleted on your computer.'
+    );
+    if (!confirmed) return;
+    tracks.forEach(function(t){ if (t.artUrl) URL.revokeObjectURL(t.artUrl); });
+    tracks = [];
+    selectedIds.clear();
+    batchOrder = [];
+    activeId = null;
+    resetBatchForm();
+    refresh();
+    showToast('Cleared ' + count + (count === 1 ? ' track' : ' tracks') + ' from the tray.');
   }
 
   function getTrack(id){
@@ -1617,6 +1691,10 @@
     }
   });
 
+  els.clearTrayBtn.addEventListener('click', function(){
+    clearTray();
+  });
+
   els.resetBtn.addEventListener('click', function(){
     var t = currentTrack();
     if (!t) return;
@@ -1720,13 +1798,17 @@
       showToast('Zip library unavailable \u2014 export tracks individually.', 'error');
       return;
     }
+    var exportList = selectedIds.size > 0
+      ? tracks.filter(function(t){ return selectedIds.has(t.id); })
+      : tracks.slice();
+
     els.downloadAllBtn.disabled = true;
     var originalLabel = els.downloadAllBtn.textContent;
     els.downloadAllBtn.textContent = 'Zipping\u2026';
     try{
       var zip = new JSZip();
       var usedNames = {};
-      tracks.forEach(function(t){
+      exportList.forEach(function(t){
         var bytes = rebuildFileBytes(t);
         var name = t.name;
         if (usedNames[name]){
@@ -1738,10 +1820,10 @@
         zip.file(name, bytes);
       });
       var content = await zip.generateAsync({ type: 'blob' });
-      triggerDownload(content, 'tagged-tracks.zip');
-      tracks.forEach(function(t){ t.dirty = false; });
+      triggerDownload(content, buildExportZipName(exportList));
+      exportList.forEach(function(t){ t.dirty = false; });
       renderTray();
-      showToast('Exported ' + tracks.length + ' tracks as a zip.', 'success');
+      showToast('Exported ' + exportList.length + ' tracks as a zip.', 'success');
     } catch(e){
       showToast('Zip export failed.', 'error');
     } finally {
