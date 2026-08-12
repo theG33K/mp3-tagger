@@ -927,7 +927,7 @@
           </div>
         </div>
 
-        <p class="batch-hint">Fields left blank stay untouched on every track. Type into a field (or clear it) to overwrite that field on all checked tracks. Track order above controls auto-numbering only.</p>
+        <p class="batch-hint">Fields show the shared value when every checked track matches, or "Various" when they differ. Leave a field as-is to keep each track's existing value there; type into it (or clear it) to overwrite that field on all checked tracks. Track order above controls auto-numbering only.</p>
 
         <div class="actions-row">
           <button class="btn primary" id="batchApplyBtn">Apply to selected</button>
@@ -1554,6 +1554,37 @@
     syncBatchOrder();
     els.batchCount.textContent = batchOrder.length + (batchOrder.length===1 ? ' track selected' : ' tracks selected');
     renderBatchOrderList();
+    var list = batchOrder.map(getTrack).filter(Boolean);
+    populateBatchFields(list);
+  }
+
+  // Batch text fields the user hasn't manually edited yet reflect the current
+  // selection: a shared value when every checked track agrees, or a "Various"
+  // placeholder (not an actual value) when they differ. Fields the user has
+  // already typed into are left alone so in-progress edits survive selection
+  // changes (e.g. checking one more track).
+  var BATCH_TEXT_FIELDS = [
+    ['artist', 'bArtist'],
+    ['album', 'bAlbum'],
+    ['albumArtist', 'bAlbumArtist'],
+    ['genre', 'bGenre'],
+    ['year', 'bYear'],
+    ['comment', 'bComment']
+  ];
+  function populateBatchFields(list){
+    BATCH_TEXT_FIELDS.forEach(function(pair){
+      var key = pair[0], el = els[pair[1]];
+      if (batchTouched[key]) return;
+      var values = list.map(function(t){ return (t.tags[key] || '').trim(); });
+      var unique = Array.from(new Set(values));
+      if (unique.length <= 1){
+        el.value = unique[0] || '';
+        el.placeholder = '';
+      } else {
+        el.value = '';
+        el.placeholder = 'Various';
+      }
+    });
   }
 
   function renderBatchOrderList(){
