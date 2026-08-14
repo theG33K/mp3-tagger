@@ -479,6 +479,7 @@
     position:relative;
   }
   .art-frame img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .art-frame img[hidden]{ display:none; }
   .art-actions{ display:flex; gap:6px; }
 
   .fields{
@@ -1556,6 +1557,7 @@
     renderBatchOrderList();
     var list = batchOrder.map(getTrack).filter(Boolean);
     populateBatchFields(list);
+    renderBatchArt(list);
   }
 
   // Batch text fields the user hasn't manually edited yet reflect the current
@@ -1621,20 +1623,62 @@
     renderBatchOrderList();
   }
 
-  function renderBatchArt(){
-    if (batchArtState.touched && batchArtState.picture && batchArtState.picture.data.length){
-      var blob = new Blob([batchArtState.picture.data], { type: batchArtState.picture.mime || 'image/jpeg' });
-      els.batchArtImg.src = URL.createObjectURL(blob);
+  var batchArtPreviewUrl = null;
+
+  function picturesEqual(a, b){
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.mime !== b.mime) return false;
+    if (a.data.length !== b.data.length) return false;
+    for (var i = 0; i < a.data.length; i++){
+      if (a.data[i] !== b.data[i]) return false;
+    }
+    return true;
+  }
+
+  // Mirrors populateBatchFields' logic for the artwork slot: 'shared' when every
+  // checked track has the exact same picture (including all having none), 'mixed'
+  // when they differ.
+  function batchArtSummary(list){
+    if (!list.length) return { state: 'none' };
+    var first = list[0].picture || null;
+    var allSame = list.every(function(t){ return picturesEqual(t.picture || null, first); });
+    if (!allSame) return { state: 'mixed' };
+    return first ? { state: 'shared', picture: first } : { state: 'none' };
+  }
+
+  function renderBatchArt(list){
+    list = list || [];
+    if (batchArtPreviewUrl){ URL.revokeObjectURL(batchArtPreviewUrl); batchArtPreviewUrl = null; }
+
+    if (batchArtState.touched){
+      if (batchArtState.picture && batchArtState.picture.data.length){
+        var blob = new Blob([batchArtState.picture.data], { type: batchArtState.picture.mime || 'image/jpeg' });
+        batchArtPreviewUrl = URL.createObjectURL(blob);
+        els.batchArtImg.src = batchArtPreviewUrl;
+        els.batchArtImg.hidden = false;
+        els.batchArtPlaceholder.hidden = true;
+      } else {
+        els.batchArtImg.hidden = true;
+        els.batchArtImg.removeAttribute('src');
+        els.batchArtPlaceholder.hidden = false;
+        els.batchArtPlaceholder.innerHTML = 'WILL<br>REMOVE';
+      }
+      return;
+    }
+
+    var summary = batchArtSummary(list);
+    if (summary.state === 'shared'){
+      var blob2 = new Blob([summary.picture.data], { type: summary.picture.mime || 'image/jpeg' });
+      batchArtPreviewUrl = URL.createObjectURL(blob2);
+      els.batchArtImg.src = batchArtPreviewUrl;
       els.batchArtImg.hidden = false;
       els.batchArtPlaceholder.hidden = true;
-    } else if (batchArtState.touched && !batchArtState.picture){
-      els.batchArtImg.hidden = true;
-      els.batchArtPlaceholder.hidden = false;
-      els.batchArtPlaceholder.innerHTML = 'WILL<br>REMOVE';
     } else {
       els.batchArtImg.hidden = true;
+      els.batchArtImg.removeAttribute('src');
       els.batchArtPlaceholder.hidden = false;
-      els.batchArtPlaceholder.innerHTML = 'ART<br>UNCHANGED';
+      els.batchArtPlaceholder.innerHTML = summary.state === 'mixed' ? 'VARIOUS' : 'NO<br>ARTWORK';
     }
   }
 
