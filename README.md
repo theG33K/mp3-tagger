@@ -5,4 +5,5 @@ A single-file HTML app for editing MP3 ID3 tags in the browser — no server, no
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L3G824WA0P)
+
 </div>
