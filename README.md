@@ -1,4 +1,6 @@
 <div align="center">
+
+  <img src="docs/icon.png" alt="mp3-tagger icon" width="120" />
   
   # mp3-tagger
   **A single-file HTML app for editing MP3 ID3 tags in the browser — no server, no uploads, everything runs client-side.**
