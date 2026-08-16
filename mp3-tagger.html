@@ -1048,8 +1048,13 @@
       let offset = 10;
       if (flags & 0x40){
         try{
-          const extSize = majorVersion===4 ? synchsafeDecode(bytes.subarray(offset,offset+4)) : readUint32BE(bytes, offset);
-          offset += extSize > 0 ? extSize : 0;
+          if (majorVersion===4){
+            const extSize = synchsafeDecode(bytes.subarray(offset,offset+4));
+            offset += extSize > 0 ? extSize : 0; // v2.4 size is synchsafe and includes itself
+          } else {
+            const extSize = readUint32BE(bytes, offset);
+            offset += 4 + (extSize > 0 ? extSize : 0); // v2.3 size excludes itself
+          }
         } catch(e){}
       }
       const tagEnd = result.tagSize;
@@ -1829,8 +1834,9 @@
     var autoNumber = els.bAutoNumber.checked;
     var startAt = parseInt(els.bStartAt.value, 10);
     if (!startAt || startAt < 1) startAt = 1;
+    var lastTrackNum = startAt + batchOrder.length - 1;
     var total = parseInt(els.bTotal.value, 10);
-    if (!total || total < batchOrder.length) total = batchOrder.length;
+    if (!total || total < lastTrackNum) total = lastTrackNum;
 
     var anyFieldTouched = batchTouched.artist || batchTouched.album || batchTouched.albumArtist ||
       batchTouched.genre || batchTouched.year || batchTouched.comment;
