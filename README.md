@@ -1,9 +1,8 @@
 <div align="center">
   <img src="docs/icon.png" alt="LinerNotes icon" width="120" />
-
-"Write it on the sleeve, right in your browser."
   
   # 🎧 LinerNotes
+  "Write it on the sleeve, right in your browser."
   
   **A single-file, browser-based MP3 ID3 tag editor.**
   *Drop in one track or a whole album, edit the metadata, preview the audio, and export — all client-side, with nothing ever uploaded anywhere.*
