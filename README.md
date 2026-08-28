@@ -1,5 +1,7 @@
 <div align="center">
   <img src="docs/icon.png" alt="LinerNotes icon" width="120" />
+
+"Write it on the sleeve, right in your browser."
   
   # 🎧 LinerNotes
   
