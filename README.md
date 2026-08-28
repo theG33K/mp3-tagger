@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="docs/icon.png" alt="mp3-tagger icon" width="120" />
+  <img src="docs/icon.png" alt="LinerNotes icon" width="120" />
   
-  # 🎧 mp3-tagger
+  # 🎧 LinerNotes
   
-  **A single-file, browser-based MP3 ID3 tag editor.** 
+  **A single-file, browser-based MP3 ID3 tag editor.**
   *Drop in one track or a whole album, edit the metadata, preview the audio, and export — all client-side, with nothing ever uploaded anywhere.*
   
   **No build step. No dependencies to install. No server. Open the HTML file and it works.**
@@ -13,7 +13,6 @@
   [![CSS](https://img.shields.io/badge/CSS-639?logo=css&logoColor=fff)](#)
   [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=000)](#)
 
-  
   [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L3G824WA0P)
   
   <br />
@@ -30,7 +29,7 @@
 
 ## 🚀 Getting Started
 
-Just open `mp3-tagger.html` in any modern browser (Chrome, Firefox, Edge, Safari). That's it — no installation, no server, no account.
+Just open `linernotes.html` in any modern browser (Chrome, Firefox, Edge, Safari). That's it — no installation, no server, no account.
 
 1. **Drop** one or more `.mp3` files onto the tray (or click it to browse).
 2. **Click** a track to edit its tags in the panel on the right, or check multiple tracks to batch-edit them together.
