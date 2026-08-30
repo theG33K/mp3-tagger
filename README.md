@@ -92,9 +92,8 @@ This project can also be packaged as:
 | Format | Description |
 | :--- | :--- |
 | **Electron App** | A native app (Windows `.exe`, Mac `.dmg`/`.app`, Linux `.AppImage`/`.deb`) for a chromeless window experience, with JSZip vendored locally for fully offline use. |
-| **Go Binary** | A single binary per platform (~5MB, no runtime dependencies) that embeds the entire app and serves it from `127.0.0.1`, opening your default browser automatically. |
 
-*(Both are built from the same underlying HTML/CSS/JS — see their respective project folders for build instructions).*
+*(It's built from the same underlying HTML/CSS/JS — see the respective project folders for build instructions).*
 
 ---
 
